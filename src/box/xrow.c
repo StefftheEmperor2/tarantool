@@ -487,6 +487,19 @@ mpstream_iproto_encode_error(struct mpstream *stream, const struct error *error)
 	mpstream_encode_map(stream, 2);
 	mpstream_encode_uint(stream, IPROTO_ERROR);
 	mpstream_encode_str(stream, error->errmsg);
+
+	uint32_t err_cnt = 0;
+	for (const struct error *it = error; it != NULL; it = it->cause)
+		err_cnt++;
+	mpstream_encode_uint(stream, IPROTO_ERROR_STACK);
+	mpstream_encode_array(stream, err_cnt);
+	for (const struct error *it = error; it != NULL; it = it->cause) {
+		mpstream_encode_map(stream, 2);
+		mpstream_encode_uint(stream, IPROTO_ERROR_CODE);
+		mpstream_encode_uint(stream, box_error_code(it));
+		mpstream_encode_uint(stream, IPROTO_ERROR_MESSAGE);
+		mpstream_encode_str(stream, it->errmsg);
+	}
 }
 
 int
@@ -1070,19 +1083,66 @@ xrow_encode_auth(struct xrow_header *packet, const char *salt, size_t salt_len,
 	return 0;
 }
 
+static int
+iproto_decode_error_stack(const char **pos, const char *end)
+{
+	const char *reason = NULL;
+	static_assert(TT_STATIC_BUF_LEN >= DIAG_ERRMSG_MAX, "static buffer is "\
+		      "expected to be larger than error message max length");
+	/*
+	 * Erase previously set diag errors. It is required since
+	 * box_error_add() does not replace previous errors.
+	 */
+	box_error_clear();
+	if (mp_check_array(*pos, end) != 0)
+		return -1;
+	uint32_t stack_sz = mp_decode_array(pos);
+	for (uint32_t i = 0; i < stack_sz; i++) {
+		uint32_t code = 0;
+		if (mp_typeof(**pos) != MP_MAP || mp_check_map(*pos, end) != 0)
+			return -1;
+		uint32_t map_sz = mp_decode_map(pos);
+		for (uint32_t key_idx = 0; key_idx < map_sz; key_idx++) {
+			if (mp_typeof(**pos) != MP_UINT ||
+			    mp_check_uint(*pos, end) != 0)
+				return -1;
+			uint8_t key = mp_decode_uint(pos);
+			if (key == IPROTO_ERROR_CODE) {
+				if (mp_typeof(**pos) != MP_UINT ||
+				    mp_check_uint(*pos, end) != 0)
+					return -1;
+				code = mp_decode_uint(pos);
+			} else if (key == IPROTO_ERROR_MESSAGE) {
+				if (mp_typeof(**pos) != MP_STR ||
+				    mp_check_strl(*pos, end) != 0)
+					return -1;
+				uint32_t len;
+				const char *str = mp_decode_str(pos, &len);
+				reason = tt_cstr(str, len);
+			} else {
+				mp_next(pos);
+				continue;
+			}
+			box_error_add(__FILE__, __LINE__, code, reason);
+		}
+	}
+	return 0;
+}
+
 void
 xrow_decode_error(struct xrow_header *row)
 {
 	uint32_t code = row->type & (IPROTO_TYPE_ERROR - 1);
 
 	char error[DIAG_ERRMSG_MAX] = { 0 };
-	const char *pos;
+	const char *pos, *end;
 	uint32_t map_size;
 
 	if (row->bodycnt == 0)
 		goto error;
 	pos = (char *) row->body[0].iov_base;
-	if (mp_check(&pos, pos + row->body[0].iov_len))
+	end = pos + row->body[0].iov_len;
+	if (mp_check(&pos, end))
 		goto error;
 
 	pos = (char *) row->body[0].iov_base;
@@ -1096,15 +1156,27 @@ xrow_decode_error(struct xrow_header *row)
 			continue;
 		}
 		uint8_t key = mp_decode_uint(&pos);
-		if (key != IPROTO_ERROR || mp_typeof(*pos) != MP_STR) {
-			mp_next(&pos); /* value */
+		if (key == IPROTO_ERROR && mp_typeof(*pos) == MP_STR) {
+			/*
+			 * Obsolete way of sending error responses.
+			 * To be deprecated but still should be supported
+			 * to not break backward compatibility.
+			 */
+			uint32_t len;
+			const char *str = mp_decode_str(&pos, &len);
+			snprintf(error, sizeof(error), "%.*s", len, str);
+			box_error_set(__FILE__, __LINE__, code, error);
+		} else if (key == IPROTO_ERROR_STACK ) {
+			if (mp_check_array(pos, end) != 0)
+				goto error;
+			if (iproto_decode_error_stack(&pos, end) != 0)
+				continue;
+		} else {
+			mp_next(&pos);
 			continue;
 		}
-
-		uint32_t len;
-		const char *str = mp_decode_str(&pos, &len);
-		snprintf(error, sizeof(error), "%.*s", len, str);
 	}
+	return;
 
 error:
 	box_error_set(__FILE__, __LINE__, code, error);
