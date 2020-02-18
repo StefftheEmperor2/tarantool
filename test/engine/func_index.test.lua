@@ -98,7 +98,6 @@ lua_code = [[function(tuple)
 test_run:cmd("setopt delimiter ''");
 box.schema.func.create('runtimeerror', {body = lua_code, is_deterministic = true, is_sandboxed = true})
 idx = s:create_index('idx', {func = box.func.runtimeerror.id, parts = {{1, 'string'}}})
-s:insert({1})
 idx:drop()
 
 -- Remove old persistent functions

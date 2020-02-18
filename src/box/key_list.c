@@ -64,7 +64,7 @@ key_list_iterator_create(struct key_list_iterator *it, struct tuple *tuple,
 		/* Can't evaluate function. */
 		struct space *space = space_by_id(index_def->space_id);
 		diag_set(ClientError, ER_FUNC_INDEX_FUNC, index_def->name,
-			 space ? space_name(space) : "",
+			 space != NULL ? space_name(space) : "",
 			 diag_last_error(diag_get())->errmsg);
 		return -1;
 	}
@@ -75,7 +75,7 @@ key_list_iterator_create(struct key_list_iterator *it, struct tuple *tuple,
 		struct space *space = space_by_id(index_def->space_id);
 		/* Can't get a result returned by function . */
 		diag_set(ClientError, ER_FUNC_INDEX_FUNC, index_def->name,
-			 space ? space_name(space) : "",
+			 space != NULL ? space_name(space) : "",
 			 diag_last_error(diag_get())->errmsg);
 		return -1;
 	}

@@ -34,6 +34,43 @@
 /* Must be set by the library user */
 struct error_factory *error_factory = NULL;
 
+int
+error_set_prev(struct error *e, struct error *prev)
+{
+	/*
+	 * Make sure that adding error won't result in cycles.
+	 * Don't bother with sophisticated cycle-detection
+	 * algorithms, simple iteration is OK since as a rule
+	 * list contains a dozen errors at maximum.
+	 */
+	struct error *tmp = prev;
+	while (tmp != NULL) {
+		if (tmp == e)
+			return -1;
+		tmp = tmp->cause;
+	}
+	/*
+	 * At once error can feature only one reason.
+	 * So unlink previous 'cause' node.
+	 */
+	if (e->cause != NULL) {
+		e->cause->effect = NULL;
+		error_unref(e->cause);
+	}
+	/* Set new 'prev' node. */
+	e->cause = prev;
+	/*
+	 * Unlink new 'effect' node from its old list of 'cause'
+	 * errors. nil can be also passed as an argument.
+	 */
+	if (prev != NULL) {
+		error_unlink_effect(prev);
+		prev->effect = e;
+		error_ref(prev);
+	}
+	return 0;
+}
+
 void
 error_create(struct error *e,
 	     error_f destroy, error_f raise, error_f log,
@@ -53,6 +90,8 @@ error_create(struct error *e,
 		e->line = 0;
 	}
 	e->errmsg[0] = '\0';
+	e->cause = NULL;
+	e->effect = NULL;
 }
 
 struct diag *

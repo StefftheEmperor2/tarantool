@@ -261,12 +261,6 @@ box.schema.func.create('runtimeerror', {body = lua_code, is_deterministic = true
 idx = s:create_index('idx', {func = box.func.runtimeerror.id, parts = {{1, 'string'}}})
  | ---
  | ...
-s:insert({1})
- | ---
- | - error: 'Failed to build a key for functional index ''idx'' of space ''withdata'':
- |     [string "return function(tuple)                 local ..."]:1: attempt to call
- |     global ''require'' (a nil value)'
- | ...
 idx:drop()
  | ---
  | ...

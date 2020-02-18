@@ -688,8 +688,8 @@ func_persistent_lua_load(struct func_lua *func)
 		if (prepare_lua_sandbox(tarantool_L, default_sandbox_exports,
 					nelem(default_sandbox_exports)) != 0) {
 			diag_set(ClientError, ER_LOAD_FUNCTION,
-				func->base.def->name,
-				diag_last_error(diag_get())->errmsg);
+				 func->base.def->name,
+				 diag_last_error(diag_get())->errmsg);
 			goto end;
 		}
 	} else {
