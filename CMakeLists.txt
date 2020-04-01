@@ -433,11 +433,17 @@ endif()
 # in the top level CMakeLists.txt, to ensure a consistent
 # header file layout across the entire project.
 #
-set(ENABLE_BUNDLED_LIBCORO ON)
-include(BuildLibCORO)
-libcoro_build()
-add_dependencies(build_bundled_libs coro)
 
+#set(ENABLE_BUNDLED_LIBCORO ON)
+option(ENABLE_BUNDLED_LIBCORO "Enable building of the bundled LibCoro" ON)
+if (ENABLE_BUNDLED_LIBCORO)
+    include(BuildLibCORO)
+    libcoro_build()
+    add_dependencies(build_bundled_libs coro)
+else()
+    set(LIBCORO_FIND_REQUIRED ON)
+    find_package(LibCoro)
+endif()
 #
 # MsgPuck
 #
