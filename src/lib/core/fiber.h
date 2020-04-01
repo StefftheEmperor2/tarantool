@@ -43,8 +43,11 @@
 #include "small/rlist.h"
 #include "salad/stailq.h"
 
+#if (ENABLE_BUNDLED_LIBCORO)
 #include <third_party/coro/coro.h>
-
+else
+#include "coro.h"
+#endif
 /*
  * Fiber top doesn't work on ARM processors at the moment,
  * because we haven't chosen an alternative to rdtsc.

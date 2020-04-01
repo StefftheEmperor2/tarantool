@@ -4,6 +4,7 @@
 enable_tnt_compile_flags()
 
 include_directories(${LIBEV_INCLUDE_DIR})
+include_directories(${LIBCORO_INCLUDE_DIR})
 include_directories(${LIBEIO_INCLUDE_DIR})
 include_directories(${LIBCORO_INCLUDE_DIR})
 include_directories(${LUAJIT_INCLUDE_DIRS})
