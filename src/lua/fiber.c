@@ -278,7 +278,11 @@ lbox_fiber_statof(struct fiber *f, void *cb_ctx, bool backtrace)
 	lua_settable(L, -3);
 
 	lua_pushliteral(L, "time");
+#if ENABLE_FIBER_TOP
 	lua_pushnumber(L, f->clock_stat.cputime / (double) FIBER_TIME_RES);
+#else
+	lua_pushstring(L, "undefined");
+#endif
 	lua_settable(L, -3);
 
 	lua_pushliteral(L, "memory");
