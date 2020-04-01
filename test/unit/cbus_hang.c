@@ -130,10 +130,11 @@ main_f(va_list ap)
 	tt_pthread_cond_signal(&endpoint_hack_cond_2);
 	tt_pthread_mutex_unlock(&endpoint_hack_mutex_2);
 
+#if __GLIBC__
 	while(hang_endpoint.mutex.__data.__lock < 2) {
 		usleep(200);
 	}
-
+#endif
 	tt_pthread_cancel(canceled_worker.id);
 	tt_pthread_mutex_unlock(&(hang_endpoint.mutex));
 	/* Hack end */
