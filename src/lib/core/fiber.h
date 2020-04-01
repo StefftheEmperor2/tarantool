@@ -49,7 +49,7 @@
  * Fiber top doesn't work on ARM processors at the moment,
  * because we haven't chosen an alternative to rdtsc.
  */
-#ifdef __CC_ARM
+#if defined(__CC_ARM) || defined(__arm__)
 #define ENABLE_FIBER_TOP 0
 #else
 #define ENABLE_FIBER_TOP 1
