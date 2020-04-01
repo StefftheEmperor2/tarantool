@@ -43,9 +43,9 @@
 #include "small/rlist.h"
 #include "salad/stailq.h"
 
-#if (ENABLE_BUNDLED_LIBCORO)
+#if(ENABLE_BUNDLED_LIBCORO)
 #include <third_party/coro/coro.h>
-else
+#else
 #include "coro.h"
 #endif
 /*
